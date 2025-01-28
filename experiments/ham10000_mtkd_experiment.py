@@ -1,4 +1,4 @@
-# Implementing Multi-Teacher Knowledge Distillation (MTKD) for ODIR-5K
+# Multi-Teacher Knowledge Distillation (MTKD) for HAM10000
 
 import torch
 import torch.nn as nn
@@ -12,17 +12,17 @@ from sklearn.preprocessing import LabelEncoder
 from sklearn.metrics import f1_score, roc_auc_score
 import numpy as np
 
-# --- Dataset and DataLoader 
-odir_image_dir = "/kaggle/input/ocular-disease-recognition-odir5k/preprocessed_images/"
-odir_label_path = "/kaggle/input/ocular-disease-recognition-odir5k/full_df.csv"
+# --- Dataset and DataLoader for HAM10000 ---
+ham_image_dir = "/kaggle/input/skin-cancer-mnist-ham10000/HAM10000_images_part_1/"
+ham_label_path = "/kaggle/input/skin-cancer-mnist-ham10000/HAM10000_metadata.csv"
 
 transform = transforms.Compose([
-    transforms.Resize((512, 512)),
+    transforms.Resize((224, 224)),
     transforms.ToTensor(),
     transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
 ])
 
-class ODIRDataset(Dataset): 
+class HAMDataset(Dataset):
     def __init__(self, csv_path, image_dir, transform=None):
         self.df = pd.read_csv(csv_path)
         self.image_dir = image_dir
@@ -31,12 +31,11 @@ class ODIRDataset(Dataset):
         self.labels = []
 
         for _, row in self.df.iterrows():
-            if pd.notna(row["Left-Fundus"]):
-                self.image_paths.append(os.path.join(image_dir, row["Left-Fundus"]))
-                self.labels.append(row["Left-Diagnostic Keywords"])
-            if pd.notna(row["Right-Fundus"]):
-                self.image_paths.append(os.path.join(image_dir, row["Right-Fundus"]))
-                self.labels.append(row["Right-Diagnostic Keywords"])
+            img_name = row["image_id"] + ".jpg"
+            img_path = os.path.join(image_dir, img_name)
+            if os.path.exists(img_path):
+                self.image_paths.append(img_path)
+                self.labels.append(row["dx"])
 
         self.label_encoder = LabelEncoder()
         self.labels = self.label_encoder.fit_transform(self.labels)
@@ -48,8 +47,8 @@ class ODIRDataset(Dataset):
         img_path = self.image_paths[idx]
         try:
             image = Image.open(img_path).convert("RGB")
-        except FileNotFoundError:
-            print(f"File not found: {img_path}")
+        except Exception as e:
+            print(f"Error loading {img_path}: {str(e)}")
             return None, None
 
         label = self.labels[idx]
@@ -60,16 +59,10 @@ class ODIRDataset(Dataset):
         return image, torch.tensor(label, dtype=torch.long)
 
 
-odir_dataset = ODIRDataset(odir_label_path, odir_image_dir, transform=transform)
-valid_indices = []
-for idx in range(len(odir_dataset)):
-    img_path = odir_dataset.image_paths[idx]
-    if os.path.exists(img_path):
-        valid_indices.append(idx)
-valid_dataset = torch.utils.data.Subset(odir_dataset, valid_indices)
-train_size = int(0.8 * len(valid_dataset))
-test_size = len(valid_dataset) - train_size
-train_dataset, test_dataset = torch.utils.data.random_split(valid_dataset, [train_size, test_size])
+ham_dataset = HAMDataset(ham_label_path, ham_image_dir, transform=transform)
+train_size = int(0.8 * len(ham_dataset))
+test_size = len(ham_dataset) - train_size
+train_dataset, test_dataset = torch.utils.data.random_split(ham_dataset, [train_size, test_size])
 train_loader = DataLoader(train_dataset, batch_size=32, shuffle=True)
 test_loader = DataLoader(test_dataset, batch_size=32, shuffle=False)
 
@@ -79,12 +72,12 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 # --- Define Teacher Models ---
 # Teacher 1: ResNet18 (Stronger Teacher)
 teacher1 = torch.hub.load('pytorch/vision:v0.10.0', 'resnet18', pretrained=True)
-teacher1.fc = nn.Linear(teacher1.fc.in_features, 8) # 8 classes
+teacher1.fc = nn.Linear(teacher1.fc.in_features, 7) # 7 classes for HAM10000
 teacher1.to(device)
 
 # Teacher 2: Smaller CNN (Weaker Teacher)
 class Teacher2CNN(nn.Module):
-    def __init__(self, num_classes=8):
+    def __init__(self, num_classes=7): # num_classes = 7 for HAM10000
         super().__init__()
         self.features = nn.Sequential(
             nn.Conv2d(3, 16, kernel_size=3, padding=1), # Reduced channels
@@ -96,7 +89,7 @@ class Teacher2CNN(nn.Module):
             nn.Flatten()
         )
         self.classifier = nn.Sequential(
-            nn.Linear(32 * 128 * 128, 128), # Reduced Linear layer size
+            nn.Linear(32 * 56 * 56, 128), # Adjusted linear layer input size for 224x224 images
             nn.ReLU(),
             nn.Linear(128, num_classes)
         )
@@ -105,12 +98,12 @@ class Teacher2CNN(nn.Module):
         x = self.features(x)
         return self.classifier(x)
 
-teacher2 = Teacher2CNN().to(device)
+teacher2 = Teacher2CNN(num_classes=7).to(device) # num_classes = 7
 
 
-# --- Define Student Model (Lean CNN - same as before) ---
-class LeanStudent(nn.Module): 
-    def __init__(self, num_classes=8): # Added num_classes argument for consistency
+# --- Define Student Model (Lean CNN) ---
+class LeanStudent(nn.Module):
+    def __init__(self, num_classes=7): # num_classes = 7 for HAM10000
         super().__init__()
         self.features = nn.Sequential(
             nn.Conv2d(3, 32, kernel_size=3, padding=1),
@@ -122,19 +115,19 @@ class LeanStudent(nn.Module):
             nn.Flatten()
         )
         self.classifier = nn.Sequential(
-            nn.Linear(64 * 128 * 128, 256),
+            nn.Linear(56*56*64, 256), # Adjusted linear layer input size for 224x224 images
             nn.ReLU(),
-            nn.Linear(256, num_classes) # Use num_classes here
+            nn.Linear(256, num_classes) # num_classes = 7
         )
 
     def forward(self, x):
         x = self.features(x)
         return self.classifier(x)
 
-student = LeanStudent().to(device)
+student = LeanStudent(num_classes=7).to(device) # num_classes = 7
 
 
-# --- Training Function for Individual Teachers and Student 
+# --- Training Function for Individual Teachers and Student (Standard Training) ---
 def train_model(model, train_loader, test_loader, epochs=10, lr=1e-4, model_name="Model", mtkd_teachers=None): # mtkd_teachers for MTKD training
     optimizer = optim.Adam(model.parameters(), lr=lr)
     criterion = nn.CrossEntropyLoss()
@@ -215,7 +208,7 @@ mtkd_student_results = train_model(student, train_loader, test_loader, model_nam
 
 
 # --- Print Results Table ---
-print("\n--- MTKD Classification Report (ODIR-5K) ---")
+print("\n--- MTKD Classification Report (HAM10000) ---")
 print(f"{'Model':<10} {'Accuracy':<10} {'F1 Score':<10} {'AUC-ROC':<10}")
 print(f"{'Teacher1':<10} {teacher1_results['Accuracy'] / 100:.2f}{'':<2} {teacher1_results['F1 Score']:.2f}{'':<2} {teacher1_results['AUC-ROC']:.2f}")
 print(f"{'Teacher2':<10} {teacher2_results['Accuracy'] / 100:.2f}{'':<2} {teacher2_results['F1 Score']:.2f}{'':<2} {teacher2_results['AUC-ROC']:.2f}")
