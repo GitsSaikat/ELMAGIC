@@ -31,13 +31,9 @@ This repository aims to provide a clear and reproducible codebase for researcher
 
 ## Table of Contents
 
-1.  [File Descriptions](#file-descriptions)
-2.  [License](#license)
-3.  [Citations](#citations)
 
-## Contributing
-
-Contributions are welcome! Please feel free to submit pull requests or open issues to suggest improvements or report bugs.
+1.  [License](#license)
+2.  [Citations](#citations)
 
 ## License
 
