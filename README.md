@@ -1,10 +1,12 @@
-<div style="border: 1px solid #ccc; padding: 10px; overflow-x: auto;">
-<pre>
-<h1 align="center">
+<p align="center">
   <a href="https://github.com/GitsSaikat/ELMAGIC">
-    <img src="logo.jpg" width="215" alt="ELMAGIC Logo" /></a><br>
+    <img src="logo.jpg" width="215" alt="ELMAGIC Logo" />
+  </a>
+</p>
+
+<h1 align="center">
   <b>ELMAGIC: Energy-Efficient Lean Model for Medical Image Analysis Experiments 🚀</b><br>
-  <b>PyTorch Code for Reproducing Experiments from the ELMAGIC Paper 🐍</b><br>
+ 
 </h1>
 
 <p align="center">
@@ -12,10 +14,9 @@
   📝 <a href="https://ieeexplore.ieee.org/document/10585776">[Paper]</a>
 </p>
 
-<strong>Hello World, Welcome to the ELMAGIC PyTorch Experiments Repository!</strong>
- 
+**Hello World, Welcome to the ELMAGIC PyTorch Experiments Repository!**
 
-This repository contains PyTorch code to reproduce the key experiments and results presented in the paper: <strong>ELMAGIC: Energy-Efficient Lean Model for Reliable Medical Image Generation and Classification Using Forward Forward Algorithm</strong>.
+This repository contains PyTorch code to reproduce the key experiments and results presented in the paper: **ELMAGIC: Energy-Efficient Lean Model for Reliable Medical Image Generation and Classification Using Forward Forward Algorithm**.
 
 Here, you will find implementations of:
 
@@ -40,14 +41,13 @@ Contributions are welcome! Please feel free to submit pull requests or open issu
 
 ## License
 
-This project is licensed under the MIT License - see the LICENSE file for details.
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
 ## Citations
 
 If you use this repository or the ELMAGIC paper in your research or project, please cite it as follows:
 
-
-  ```bibtex
+```bibtex
 @inproceedings{barua2024elmagic,
   title={ELMAGIC: energy-efficient lean model for reliable medical image generation and classification using forward forward algorithm},
   author={Barua, Saikat and Rahman, Mostafizur and Saad, Mezbah Uddin and Islam, Rafiul and Sadek, Md Jafor},
@@ -56,10 +56,4 @@ If you use this repository or the ELMAGIC paper in your research or project, ple
   year={2024},
   organization={IEEE}
 }
-
- ```   
-<p align="center">
-  <a href="figures/ELMAGIC_Logo.png">
-    <img src="https://github.com/GitsSaikat/ELMAGIC/blob/main/logo.jpg" alt="ELMAGIC Logo" width="40%" />
-  </a>
-</p>
+```
